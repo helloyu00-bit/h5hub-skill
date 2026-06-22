@@ -46,10 +46,35 @@ Before publishing, briefly tell the user these constraints. Do not ask for confi
 ## Standard Workflow
 
 1. Verify the HTML file exists.
-2. Publish with the bundled script. The script automatically reads saved login config from `~/.h5hub/config.json`.
-3. Return only the successful public URL plus any relevant caveat.
-4. If publish fails with `Unauthorized` or `401`, ask the user for the invite code and run the login command below.
-5. If publish fails for other reasons, diagnose using the failure handling section below.
+2. Briefly show the required user notice.
+3. Ask the user to choose the publish policy unless the user already specified it in the request.
+4. Publish with the bundled script. The script automatically reads saved login config from `~/.h5hub/config.json`.
+5. Return only the successful public URL plus the chosen expiry/password status.
+6. If publish fails with `Unauthorized` or `401`, ask the user for the invite code and run the login command below.
+7. If publish fails for other reasons, diagnose using the failure handling section below.
+
+## Publish Policy Prompt
+
+When the user says they want to host/publish/share a page but has not specified access policy, ask one concise question before publishing. Do not expect non-technical users to know CLI flags.
+
+Use this wording in Chinese when the user is Chinese:
+
+```text
+请确认这次托管策略：
+1. 过期时间：默认 30 天自动续期 / 24 小时固定下架 / 7 天固定下架 / 自定义
+2. 访问密码：不设置 / 设置一个访问密码
+```
+
+Rules:
+
+- If the user chooses default expiry, do not pass `--ttl`.
+- If the user chooses 24 hours, pass `--ttl 24h`.
+- If the user chooses 7 days, pass `--ttl 7d`.
+- If the user chooses custom expiry, ask for a value such as `30m`, `12h`, `3d`, or `30d`, then pass it as `--ttl VALUE`.
+- If the user chooses no password, do not pass `--password`.
+- If the user chooses password protection but has not provided a password, ask them to provide the visitor password, then pass it as `--password PASSWORD`.
+- If the user already gave a clear expiry and/or password in the original request, do not ask again for those fields.
+- Never expose the final command with the password unless the user explicitly asks for the command.
 
 ## Invite Code Login
 
@@ -85,19 +110,19 @@ Preferred command:
 node "$SKILL_DIR/scripts/publish-html.mjs" /absolute/path/to/page.html "Page title"
 ```
 
-Fixed takedown time:
+If the user chooses 24 hours fixed takedown:
 
 ```bash
 node "$SKILL_DIR/scripts/publish-html.mjs" --ttl 24h /absolute/path/to/page.html "Page title"
 ```
 
-Visitor password:
+If the user chooses visitor password:
 
 ```bash
 node "$SKILL_DIR/scripts/publish-html.mjs" --password VIEW_PASSWORD /absolute/path/to/page.html "Page title"
 ```
 
-Fixed takedown time plus visitor password:
+If the user chooses fixed takedown time plus visitor password:
 
 ```bash
 node "$SKILL_DIR/scripts/publish-html.mjs" --ttl 24h --password VIEW_PASSWORD /absolute/path/to/page.html "Page title"

@@ -28,11 +28,10 @@ Ask your Agent:
 帮我把 /path/to/page.html 托管一下
 ```
 
-Optional access policy:
+The Agent should ask you to choose:
 
-```bash
-node <skills-dir>/h5hub/scripts/publish-html.mjs --ttl 24h --password VIEW_PASSWORD /path/to/page.html "Page title"
-```
+- Expiry: default 30-day auto-extension, fixed 24 hours, fixed 7 days, or custom.
+- Visitor password: no password, or set a lightweight access password.
 
 ## Notes
 

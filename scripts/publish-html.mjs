@@ -7,6 +7,7 @@ const DEFAULT_WORKER_URL = 'https://h5.h5hub.xyz';
 const CONFIG_DIRNAME = '.h5hub';
 const LEGACY_CONFIG_DIRNAME = '.h5publish';
 const CONFIG_FILENAME = 'config.json';
+const TTL_PATTERN = /^(\d+)([mhd])?$/i;
 
 function getConfigPath(env = process.env) {
   const home = env.H5HUB_CONFIG_HOME || env.H5PUBLISH_CONFIG_HOME || env.HOME || env.USERPROFILE;
@@ -63,12 +64,24 @@ function normalizeWorkerUrl(value) {
   }
 }
 
+function parseTtlSeconds(value) {
+  const text = String(value || '').trim();
+  const match = text.match(TTL_PATTERN);
+  if (!match) throw new Error('--ttl must look like 30m, 12h, 7d, or seconds');
+  const amount = Number(match[1]);
+  const unit = (match[2] || 's').toLowerCase();
+  const multiplier = unit === 'd' ? 24 * 60 * 60 : unit === 'h' ? 60 * 60 : unit === 'm' ? 60 : 1;
+  return amount * multiplier;
+}
+
 function parseArgs(argv, env, config = {}) {
   const args = [...argv];
   const positional = [];
   let workerUrl = env.H5HUB_WORKER_URL || env.H5PUBLISH_WORKER_URL || config.workerUrl || DEFAULT_WORKER_URL;
   let token = env.H5HUB_TOKEN || env.H5PUBLISH_TOKEN || config.token;
   let json = false;
+  let ttlSeconds;
+  let password;
 
   if (args[0] === 'login') {
     args.shift();
@@ -102,6 +115,13 @@ function parseArgs(argv, env, config = {}) {
       if (!token) throw new Error('--token requires a value');
     } else if (arg === '--json') {
       json = true;
+    } else if (arg === '--ttl') {
+      const value = args.shift();
+      if (!value) throw new Error('--ttl requires a value');
+      ttlSeconds = parseTtlSeconds(value);
+    } else if (arg === '--password') {
+      password = args.shift();
+      if (!password) throw new Error('--password requires a value');
     } else if (arg === '--help' || arg === '-h') {
       return { help: true };
     } else if (arg?.startsWith('--')) {
@@ -121,6 +141,8 @@ function parseArgs(argv, env, config = {}) {
     workerUrl: normalizeWorkerUrl(workerUrl),
     token,
     json,
+    ttlSeconds,
+    password,
   };
 }
 
@@ -135,16 +157,22 @@ async function readHtml(filePath) {
   return fs.readFile(filePath, 'utf8');
 }
 
-async function publish({ html, title, workerUrl, token }) {
+async function publish({ html, title, workerUrl, token, ttlSeconds, password }) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
+  const payload = {
+    html,
+    title,
+    ...(ttlSeconds ? { ttlSeconds } : {}),
+    ...(password ? { password } : {}),
+  };
 
   let response;
   try {
     response = await fetch(`${workerUrl}/api/publish`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ html, title }),
+      body: JSON.stringify(payload),
     });
   } catch (error) {
     const detail = error.cause?.message || error.message;
@@ -170,10 +198,11 @@ function usage() {
   return [
     'Usage:',
     '  publish-html.mjs login [--url WORKER_URL] <invite-code>',
-    '  publish-html.mjs [--url WORKER_URL] [--token TOKEN] [--json] <html-file|-> [title]',
+    '  publish-html.mjs [--url WORKER_URL] [--token TOKEN] [--ttl 1h|7d|30d] [--password PASSWORD] [--json] <html-file|-> [title]',
     'Examples:',
     '  node scripts/publish-html.mjs login team-invite-code',
     '  node scripts/publish-html.mjs ./page.html "Page title"',
+    '  node scripts/publish-html.mjs --ttl 24h --password view-code ./page.html "Private page"',
     '  cat page.html | node scripts/publish-html.mjs - "Page title"',
     '',
   ].join('\n');
@@ -196,7 +225,14 @@ try {
   if (options.json) {
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } else {
-    process.stdout.write(`Publish succeeded\nURL: ${result.url}\nCode: ${result.code}\n`);
+    process.stdout.write([
+      'Publish succeeded',
+      `URL: ${result.url}`,
+      `Code: ${result.code}`,
+      result.expiresAt ? `Expires: ${result.expiresAt}` : '',
+      result.passwordProtected ? 'Password: enabled' : '',
+      '',
+    ].filter((line, index, lines) => line || index === lines.length - 1).join('\n'));
   }
 } catch (error) {
   process.stderr.write(`${error.message}\n\n${usage()}`);

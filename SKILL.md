@@ -36,10 +36,12 @@ Before publishing, briefly tell the user these constraints. Do not ask for confi
 - Do not publish illegal, infringing, phishing, gambling, pornographic, scam, malware, credential-collection, impersonation, or misleading pages.
 - Do not publish company secrets, personal privacy data, customer data, access tokens, internal links, or pages that depend on sensitive cookies.
 - Links are temporary. Default page TTL is 30 days, and page views extend expiry to at least 15 days from the access time.
+- If the user asks for a fixed takedown time, publish with `--ttl`. Custom TTL pages do not extend on access.
+- If the user asks for a visitor password, publish with `--password`. This is lightweight access gating, not a replacement for real auth or a safe place for secrets.
 - Single HTML file limit is 10 MB.
 - Anonymous publishing is rate-limited by source IP: 3 publishes/hour and 10 publishes/day.
 - Access limits can expire a page: more than 30 unique visitors/day, more than 100 page views/day, or more than 200 total page views.
-- Availability depends on DNS and network access to the custom domain. Mainland China access may still vary by network.
+- Availability depends on network access to the hosting domain. Mainland China access may still vary by network.
 
 ## Standard Workflow
 
@@ -83,6 +85,24 @@ Preferred command:
 node "$SKILL_DIR/scripts/publish-html.mjs" /absolute/path/to/page.html "Page title"
 ```
 
+Fixed takedown time:
+
+```bash
+node "$SKILL_DIR/scripts/publish-html.mjs" --ttl 24h /absolute/path/to/page.html "Page title"
+```
+
+Visitor password:
+
+```bash
+node "$SKILL_DIR/scripts/publish-html.mjs" --password VIEW_PASSWORD /absolute/path/to/page.html "Page title"
+```
+
+Fixed takedown time plus visitor password:
+
+```bash
+node "$SKILL_DIR/scripts/publish-html.mjs" --ttl 24h --password VIEW_PASSWORD /absolute/path/to/page.html "Page title"
+```
+
 If `SKILL_DIR` is not set by the runtime, resolve it to this skill folder and run:
 
 ```bash
@@ -105,6 +125,8 @@ node "$SKILL_DIR/scripts/publish-html.mjs" --json /absolute/path/to/page.html "P
 
 - `--url WORKER_URL`: Override the Worker URL for one publish.
 - `--token TOKEN`: Send a bearer token if the hosting service requires authentication.
+- `--ttl VALUE`: Set a fixed takedown time for this page. Values support seconds, `m`, `h`, and `d`, for example `30m`, `12h`, `7d`, `30d`.
+- `--password PASSWORD`: Require visitors to enter this password before viewing the page.
 - `--json`: Print JSON.
 - `login INVITE_CODE`: Save the invite code locally for future publishes.
 - `H5HUB_WORKER_URL`: Default Worker URL override.

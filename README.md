@@ -28,9 +28,17 @@ Ask your Agent:
 帮我把 /path/to/page.html 托管一下
 ```
 
+Optional access policy:
+
+```bash
+node <skills-dir>/h5hub/scripts/publish-html.mjs --ttl 24h --password VIEW_PASSWORD /path/to/page.html "Page title"
+```
+
 ## Notes
 
 - Do not publish private data, secrets, customer data, internal links, illegal content, phishing, scams, malware, credential collection, or misleading pages.
 - Links are temporary. Default TTL is 30 days, and visits extend expiry to at least 15 days from access time.
+- If `--ttl` is set, the page uses that fixed takedown time and does not auto-extend on visits.
+- If `--password` is set, visitors must enter the password before viewing the page. This is lightweight access gating, not a replacement for real auth.
 - Single HTML file limit is 10 MB.
 - This is an invited internal trial service.
